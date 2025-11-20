@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>DoS Attack Monitor</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0"></script>
+  <style>
+    :root {
+      --bg: #0a0e14;
+      --card: #101419;
+      --muted: #8b95a3;
+      --accent: #5b9ef7;
+      --green: #10b981;
+      --yellow: #f59e0b;
+      --red: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: #e4ecf5;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    .container { max-width: 1400px; margin: 0 auto; }
+    
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+      font-weight: 700;
+      font-size: 28px;
+      color: #fff;
+    }
+    
+    .alert {
+      padding: 16px 24px;
+      border-radius: 12px;
+      text-align: center;
+      font-weight: 700;
+      margin-bottom: 24px;
+      font-size: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      transition: all 0.3s ease;
+    }
+    
+    .safe {
+      background: linear-gradient(135deg, #064e3b 0%, #065f46 100%);
+      color: #d1fae5;
+      border: 2px solid rgba(16, 185, 129, 0.3);
+    }
+    
+    .learning {
+      background: linear-gradient(135deg, #78350f 0%, #92400e 100%);
+      color: #fef3c7;
+      border: 2px solid rgba(245, 158, 11, 0.3);
+    }
+    
+    .monitoring {
+      background: linear-gradient(135deg, #1e3a5f 0%, #1e40af 100%);
+      color: #dbeafe;
+      border: 2px solid rgba(59, 130, 246, 0.4);
+      animation: pulse-warning 2s infinite ease-in-out;
+    }
+    
+    .suspicious {
+      background: linear-gradient(135deg, #92400e 0%, #b45309 100%);
+      color: #fef3c7;
+      border: 2px solid rgba(245, 158, 11, 0.5);
+      animation: pulse-warning 2s infinite ease-in-out;
+    }
+    
+    .attack {
+      background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%);
+      color: #fff;
+      border: 2px solid rgba(239, 68, 68, 0.6);
+      animation: pulse-attack 1s infinite ease-in-out;
+    }
+    
+    .error-state {
+      background: linear-gradient(135deg, #374151 0%, #4b5563 100%);
+      color: #f3f4f6;
+      border: 2px solid rgba(156, 163, 175, 0.4);
+    }
+    
+    @keyframes pulse-attack {
+      0%, 100% { transform: scale(1); box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4); }
+      50% { transform: scale(1.02); box-shadow: 0 8px 24px rgba(239, 68, 68, 0.6); }
+    }
+    
+    @keyframes pulse-warning {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.01); }
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    
+    .card {
+      background: linear-gradient(145deg, #0f1419 0%, #14191f 100%);
+      border-radius: 12px;
+      padding: 18px;
+      border: 1px solid rgba(255,255,255,0.04);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      transition: all 0.2s ease;
+      min-height: 90px;
+    }
+    
+    .card:hover {
+      border-color: rgba(255,255,255,0.08);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+      transform: translateY(-2px);
+    }
+    
+    .label {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 600;
+    }
+    
+    .val {
+      font-size: 26px;
+      font-weight: 700;
+      color: #fff;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .charts {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+    
+    .chart-card {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 20px;
+      border: 1px solid rgba(255,255,255,0.04);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      height: 400px;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .chart-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .chart-container {
+      flex: 1;
+      position: relative;
+      min-height: 0;
+    }
+
+    .chart-container canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    .footer {
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255,255,255,0.05);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    
+    .last-update {
+      font-weight: 600;
+    }
+    
+    .status-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 6px;
+      background: var(--green);
+      animation: blink 2s infinite;
+    }
+    
+    .status-dot.error {
+      background: var(--red);
+      animation: blink-fast 1s infinite;
+    }
+    
+    .status-dot.warning {
+      background: var(--yellow);
+    }
+    
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+    
+    @keyframes blink-fast {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.2; }
+    }
+    
+    .connection-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: rgba(16, 185, 129, 0.1);
+      font-size: 12px;
+      font-weight: 600;
+    }
+    
+    .connection-status.error {
+      background: rgba(239, 68, 68, 0.1);
+      color: #fca5a5;
+    }
+    
+    .connection-status.warning {
+      background: rgba(245, 158, 11, 0.1);
+      color: #fcd34d;
+    }
+
+    @media (max-width: 1024px) {
+      .charts { 
+        grid-template-columns: 1fr;
+      }
+      .chart-card {
+        height: 350px;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      .grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+      h1 { font-size: 22px; }
+      .val { font-size: 22px; }
+      .chart-card {
+        height: 300px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1> DoS Attack Monitor</h1>
+
+    <div id="alertBanner" class="alert safe">SAFE</div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="label">CPU Usage</div>
+        <div id="cpu" class="val">0%</div>
+      </div>
+      <div class="card">
+        <div class="label">Memory</div>
+        <div id="mem" class="val">0%</div>
+      </div>
+      <div class="card">
+        <div class="label">HTTP Success</div>
+        <div id="http" class="val">100%</div>
+      </div>
+      <div class="card">
+        <div class="label">Latency Avg</div>
+        <div id="lat" class="val">0 ms</div>
+      </div>
+      <div class="card">
+        <div class="label">Latency p95</div>
+        <div id="p95" class="val">0 ms</div>
+      </div>
+      <div class="card">
+        <div class="label">Throughput</div>
+        <div id="thru" class="val">0 req/s</div>
+      </div>
+      <div class="card">
+        <div class="label">TCP Established</div>
+        <div id="est" class="val">0</div>
+      </div>
+      <div class="card">
+        <div class="label">TCP SYN-RECV</div>
+        <div id="syn" class="val">0</div>
+      </div>
+      <div class="card">
+        <div class="label">UDP Burst (5s)</div>
+        <div id="udp" class="val">0</div>
+      </div>
+      <div class="card">
+        <div class="label">Packet Loss</div>
+        <div id="loss" class="val">0%</div>
+      </div>
+    </div>
+
+    <div class="charts">
+      <div class="chart-card">
+        <div class="chart-title">Application Metrics</div>
+        <div class="chart-container">
+          <canvas id="leftChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Network & Attack Indicators</div>
+        <div class="chart-container">
+          <canvas id="rightChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <div>
+        <span class="status-dot" id="statusDot"></span>
+        <span class="last-update">Last update: <span id="time">--:--:--</span></span>
+        <span class="connection-status" id="connectionStatus" style="margin-left: 12px;">
+          <span>●</span>
+          <span>Connected</span>
+        </span>
+      </div>
+      <div> Auto-refresh: 3s</div>
+    </div>
+  </div>
+
+<script>
+  const COLORS = {
+    cpu: '#ef4444',
+    mem: '#3b82f6',
+    http: '#10b981',
+    lat: '#f59e0b',
+    thru: '#8b5cf6',
+    est: '#06b6d4',
+    syn: '#f97316',
+    udp: '#ec4899',
+    loss: '#dc2626'
+  };
+
+  const leftCtx = document.getElementById('leftChart').getContext('2d');
+  const rightCtx = document.getElementById('rightChart').getContext('2d');
+
+  function buildLineConfig(datasets, yAxisConfig) {
+    return {
+      type: 'line',
+      data: { labels: [], datasets: datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: {
+          duration: 0
+        },
+        interaction: { 
+          mode: 'index', 
+          intersect: false 
+        },
+        scales: yAxisConfig,
+        plugins: {
+          legend: { 
+            labels: { 
+              color: '#d1d5db', 
+              font: { size: 11 },
+              boxWidth: 12,
+              padding: 8
+            }
+          },
+          tooltip: { 
+            mode: 'index', 
+            intersect: false,
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            titleColor: '#fff',
+            bodyColor: '#d1d5db',
+            padding: 10
+          }
+        }
+      }
+    };
+  }
+
+  const leftDatasets = [
+    { 
+      label: 'CPU %', 
+      data: [], 
+      borderColor: COLORS.cpu, 
+      backgroundColor: COLORS.cpu + '20', 
+      tension: 0.4, 
+      borderWidth: 2, 
+      pointRadius: 0, 
+      fill: true,
+      yAxisID: 'y'
+    },
+    { 
+      label: 'Memory %', 
+      data: [], 
+      borderColor: COLORS.mem, 
+      backgroundColor: COLORS.mem + '20', 
+      tension: 0.4, 
+      borderWidth: 2, 
+      pointRadius: 0, 
+      fill: true,
+      yAxisID: 'y'
+    },
+    { 
+      label: 'HTTP Success %', 
+      data: [], 
+      borderColor: COLORS.http, 
+      tension: 0.4, 
+      borderWidth: 2, 
+      pointRadius: 0,
+      yAxisID: 'y'
+    },
+    { 
+      label: 'Latency Avg (ms)', 
+      data: [], 
+      borderColor: COLORS.lat, 
+      tension: 0.4, 
+      borderWidth: 2, 
+      pointRadius: 0, 
+      yAxisID: 'y2' 
+    },
+    { 
+      label: 'Throughput (req/s)', 
+      data: [], 
+      borderColor: COLORS.thru, 
+      tension: 0.4, 
+      borderWidth: 2, 
+      pointRadius: 0, 
+      yAxisID: 'y2' 
+    }
+  ];
+
+  const rightDatasets = [
+    { 
+      label: 'TCP Established', 
+      data: [], 
+      borderColor: COLORS.est, 
+      tension: 0.4, 
+      borderWidth: 2, 
+      pointRadius: 0 
+    },
+    { 
+      label: 'TCP SYN-RECV', 
+      data: [], 
+      borderColor: COLORS.syn, 
+      backgroundColor: COLORS.syn + '30', 
+      tension: 0.4, 
+      borderWidth: 2, 
+      pointRadius: 0, 
+      fill: true 
+    },
+    { 
+      label: 'UDP Burst (5s)', 
+      data: [], 
+      borderColor: COLORS.udp, 
+      backgroundColor: COLORS.udp + '30', 
+      tension: 0.4, 
+      borderWidth: 2, 
+      pointRadius: 0, 
+      fill: true 
+    },
+    { 
+      label: 'Packet Loss %', 
+      data: [], 
+      borderColor: COLORS.loss, 
+      tension: 0.4, 
+      borderWidth: 2, 
+      pointRadius: 0 
+    }
+  ];
+
+  const leftChart = new Chart(leftCtx, buildLineConfig(leftDatasets, {
+    y: { 
+      beginAtZero: true,
+      suggestedMax: 100,
+      grid: { color: 'rgba(255,255,255,0.04)' },
+      ticks: { 
+        color: '#8b95a3',
+        callback: function(value) {
+          return value + '%';
+        }
+      },
+      title: { 
+        display: true, 
+        text: 'Percentage (%)', 
+        color: '#8b95a3',
+        font: { size: 11 }
+      }
+    },
+    y2: {
+      beginAtZero: true,
+      position: 'right',
+      grid: { display: false },
+      ticks: { 
+        color: '#8b95a3',
+        callback: function(value) {
+          return value;
+        }
+      },
+      title: { 
+        display: true, 
+        text: 'ms / req/s', 
+        color: '#8b95a3',
+        font: { size: 11 }
+      }
+    },
+    x: { 
+      grid: { color: 'rgba(255,255,255,0.02)' },
+      ticks: { 
+        color: '#8b95a3', 
+        maxTicksLimit: 10,
+        autoSkip: true
+      }
+    }
+  }));
+
+  const rightChart = new Chart(rightCtx, buildLineConfig(rightDatasets, {
+    y: { 
+      beginAtZero: true,
+      grid: { color: 'rgba(255,255,255,0.04)' },
+      ticks: { 
+        color: '#8b95a3'
+      },
+      title: { 
+        display: true, 
+        text: 'Connections / Packets', 
+        color: '#8b95a3',
+        font: { size: 11 }
+      }
+    },
+    x: { 
+      grid: { color: 'rgba(255,255,255,0.02)' },
+      ticks: { 
+        color: '#8b95a3', 
+        maxTicksLimit: 10,
+        autoSkip: true
+      }
+    }
+  }));
+
+  let consecutiveErrors = 0;
+  let lastUpdateTime = Date.now();
+  const MAX_CONSECUTIVE_ERRORS = 3;
+  const UPDATE_INTERVAL = 3000;
+
+  async function fetchJSON(path, retries = 2) {
+    for (let i = 0; i <= retries; i++) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
+        const res = await fetch(path, { 
+          cache: 'no-store',
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        
+        if (!res.ok) {
+          if (i < retries) continue;
+          return null;
+        }
+        return await res.json();
+      } catch (e) {
+        if (e.name === 'AbortError') {
+          console.warn(`Request timeout for ${path}`);
+        } else {
+          console.error(`Fetch error for ${path}:`, e);
+        }
+        if (i < retries) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+          continue;
+        }
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function updateConnectionStatus(isConnected, isError = false) {
+    const statusEl = document.getElementById('connectionStatus');
+    const dotEl = document.getElementById('statusDot');
+    
+    if (isError || !isConnected) {
+      statusEl.className = 'connection-status error';
+      statusEl.innerHTML = '<span>●</span><span>Connection Error</span>';
+      dotEl.className = 'status-dot error';
+      consecutiveErrors++;
+    } else {
+      statusEl.className = 'connection-status';
+      statusEl.innerHTML = '<span>●</span><span>Connected</span>';
+      dotEl.className = 'status-dot';
+      consecutiveErrors = 0;
+      
+      // Check if we should show warning (stale data)
+      const timeSinceUpdate = Date.now() - lastUpdateTime;
+      if (timeSinceUpdate > UPDATE_INTERVAL * 2) {
+        statusEl.className = 'connection-status warning';
+        statusEl.innerHTML = '<span>●</span><span>Stale Data</span>';
+        dotEl.className = 'status-dot warning';
+      }
+    }
+  }
+
+  function updateAlertBanner(alertText) {
+    const banner = document.getElementById('alertBanner');
+    banner.textContent = alertText || 'SAFE';
+    
+    // Enhanced alert state detection
+    if (alertText && alertText.startsWith("UNDER ATTACK")) {
+      banner.className = 'alert attack';
+    } else if (alertText && alertText.startsWith("SUSPICIOUS")) {
+      banner.className = 'alert suspicious';
+    } else if (alertText && alertText.startsWith("MONITORING")) {
+      banner.className = 'alert monitoring';
+    } else if (alertText === "LEARNING BASELINE") {
+      banner.className = 'alert learning';
+    } else if (!alertText || consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+      banner.className = 'alert error-state';
+      banner.textContent = 'Connection Error - Retrying...';
+    } else {
+      banner.className = 'alert safe';
+    }
+  }
+
+  function safeUpdateElement(id, value, suffix = '') {
+    const el = document.getElementById(id);
+    if (el && value !== undefined && value !== null) {
+      // For integer fields (est, syn, udp), don't use decimals
+      const integerFields = ['est', 'syn', 'udp'];
+      if (integerFields.includes(id)) {
+        el.textContent = Math.round(parseFloat(value) || 0) + suffix;
+      } else {
+        el.textContent = typeof value === 'number' 
+          ? (value.toFixed ? value.toFixed(1) : value) + suffix
+          : value + suffix;
+      }
+    }
+  }
+
+  async function update() {
+    try {
+      const [m, h] = await Promise.all([
+        fetchJSON('/metrics'), 
+        fetchJSON('/history')
+      ]);
+
+      if (!m || !h) {
+        updateConnectionStatus(false, true);
+        updateAlertBanner(null);
+        
+        if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+          console.error("Multiple consecutive fetch failures");
+        }
+        return;
+      }
+
+      // Success - update connection status
+      lastUpdateTime = Date.now();
+      updateConnectionStatus(true, false);
+
+      // Update cards with safe value handling
+      safeUpdateElement('cpu', m.cpu, '%');
+      safeUpdateElement('mem', m.memory, '%');
+      safeUpdateElement('http', m.http_success, '%');
+      safeUpdateElement('lat', m.latency_avg, ' ms');
+      safeUpdateElement('p95', m.latency_p95, ' ms');
+      safeUpdateElement('thru', m.throughput, ' req/s');
+      safeUpdateElement('est', m.tcp_est);
+      safeUpdateElement('syn', m.tcp_syn);
+      safeUpdateElement('udp', m.udp_burst);
+      safeUpdateElement('loss', m.packet_loss, '%');
+      safeUpdateElement('time', m.time);
+
+      // Update alert banner
+      updateAlertBanner(m.alert);
+
+      // Update charts - ensure we have valid data
+      if (Array.isArray(h) && h.length > 0) {
+        const labels = h.map(p => p.t || '');
+        
+        // Left chart
+        if (leftChart && leftChart.data) {
+          leftChart.data.labels = labels;
+          leftChart.data.datasets[0].data = h.map(p => p.cpu || 0);
+          leftChart.data.datasets[1].data = h.map(p => p.mem || 0);
+          leftChart.data.datasets[2].data = h.map(p => p.http || 0);
+          leftChart.data.datasets[3].data = h.map(p => p.lat || 0);
+          leftChart.data.datasets[4].data = h.map(p => p.rps || 0);
+          leftChart.update('none');
+        }
+
+        // Right chart
+        if (rightChart && rightChart.data) {
+          rightChart.data.labels = labels;
+          rightChart.data.datasets[0].data = h.map(p => p.est || 0);
+          rightChart.data.datasets[1].data = h.map(p => p.syn || 0);
+          rightChart.data.datasets[2].data = h.map(p => p.udp || 0);
+          rightChart.data.datasets[3].data = h.map(p => p.loss || 0);
+          rightChart.update('none');
+        }
+      }
+
+    } catch (error) {
+      console.error('Update error:', error);
+      updateConnectionStatus(false, true);
+      updateAlertBanner(null);
+    }
+  }
+
+  // Start updates
+  setInterval(update, UPDATE_INTERVAL);
+  update(); // Initial update
+</script>
+</body>
+</html>
