@@ -3,7 +3,6 @@
 A modular, virtualized environment for studying Denial-of-Service (DoS) attacks and evaluating defensive techniques.  
 The project includes attack scripts, mitigation automation, real-time monitoring, and target services that simulate real-world behavior under load.
 
-This lab is designed for learning, experimentation, and demonstrating practical cybersecurity skills.
 
 ---
 
