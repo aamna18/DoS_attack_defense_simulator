@@ -47,28 +47,24 @@ Both servers act as realistic test targets for attack scripts and dashboard anal
 
 ---
 
-<details> <summary>Version for direct use inside README (no escaping needed)</summary>
-├── attacks/
-│   ├── slowloris.py
-│   ├── tcp_syn_flood.py
-│   └── udp_flood.py
-│
-├── defense/
-│   ├── mitigation.sh
-│
-│
-├── dashboard/
-│   ├── app.py
-|   └── templates/
-│   
-│
-├── servers/
-│ 
-│   └── udp_server.py
-│
-└── README.md
+## Project Structure
 
-</details>
+attacks/
+- slowloris.py
+- tcp_syn_flood.py
+- udp_flood.py
+
+defense/
+- mitigation.sh
+
+dashboard/
+- app.py
+- templates/
+
+servers/
+- udp_server.py
+
+README.md
 
 
 ---
