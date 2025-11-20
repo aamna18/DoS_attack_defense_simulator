@@ -47,30 +47,29 @@ Both servers act as realistic test targets for attack scripts and dashboard anal
 
 ---
 
-## Repository Structure
-
+<details> <summary>Version for direct use inside README (no escaping needed)</summary>
 ├── attacks/
-│ ├── slowloris.py
-│ ├── tcp_syn_flood.py
-│ └── udp_flood.py
+│   ├── slowloris.py
+│   ├── tcp_syn_flood.py
+│   └── udp_flood.py
 │
 ├── defense/
-│ ├── mitigation.sh
-│ └── utils/
+│   ├── mitigation.sh
+│
 │
 ├── dashboard/
-│ ├── app.py
-│ ├── static/
-│ └── templates/
+│   ├── app.py
+|   └── templates/
+│   
 │
 ├── servers/
-│ ├── apache/
-│ └── udp_server.py
+│ 
+│   └── udp_server.py
 │
 └── README.md
 
-yaml
-Copy code
+</details>
+
 
 ---
 
@@ -91,10 +90,9 @@ This forms a complete test cycle for understanding DoS behavior and response str
 ### Running an Attack
 Each attack script accepts parameters for tuning speed, duration, and concurrency.  
 Example:
-python3 slowloris.py <target_ip> <port>
+python3 slowloris.py <target_ip> 
 
-shell
-Copy code
+
 
 ### Applying Mitigation
 sudo bash mitigation.sh
@@ -106,8 +104,7 @@ Available actions include enabling defenses, disabling rules, checking status, a
 ### Launching the Dashboard
 python3 app.py
 
-yaml
-Copy code
+
 Opens the monitoring interface for observing attack behavior.
 
 ---
